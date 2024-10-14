@@ -1,0 +1,136 @@
+diff -urpN a/keyd.init.in b/keyd.init.in
+--- a/keyd.init.in	1970-01-01 01:00:00.000000000 +0100
++++ b/keyd.init.in	2024-10-05 23:27:36.947837763 +0200
+@@ -0,0 +1,18 @@
++#!/bin/sh /lib/init/init-d-script
++
++### BEGIN INIT INFO
++# Provides:          keyd
++# Required-Start:    
++# Required-Stop:     
++# Default-Start:     1 2 3 4 5
++# Default-Stop:
++# Short-Description: key remapping daemon
++# Description:       daemon to remapping keys 
++#                    running across platforms X/Wayland/etc.
++### END INIT INFO
++
++### Daemon setup based on init-d-script (5)
++DAEMON=@PREFIX@/bin/keyd
++DESCRIPTION=key remapping daemon
++START_ARGS=--make-pidfile
++
+diff -urpN a/Makefile b/Makefile
+--- a/Makefile	2024-10-05 23:33:19.689148442 +0200
++++ b/Makefile	2024-10-05 23:26:41.521342966 +0200
+@@ -1,9 +1,11 @@
+ .PHONY: all clean install uninstall debug man compose test-harness
++
+ VERSION=2.5.0
++
+ COMMIT=$(shell git describe --no-match --always --abbrev=7 --dirty)
+ VKBD=uinput
+-PREFIX?=/usr/local
+ 
++PREFIX?=/usr/local
+ CONFIG_DIR?=/etc/keyd
+ SOCKET_PATH=/var/run/keyd.socket
+ 
+@@ -31,14 +33,17 @@ else
+ 	COMPAT_FILES=
+ endif
+ 
+-all:
+-	-mkdir bin
++all: man
++	mkdir -p bin
++	sed -e 's#@PREFIX@#$(PREFIX)#' src/vkbd/usb-gadget.service.in > src/vkbd/usb-gadget.service
++	sed -e 's#@PREFIX@#$(PREFIX)#' keyd.service.in > keyd.service
++	sed -e 's#@PREFIX@#$(PREFIX)#' keyd.init.in > keyd.init
+ 	cp scripts/keyd-application-mapper bin/
+ 	$(CC) $(CFLAGS) -O3 $(COMPAT_FILES) src/*.c src/vkbd/$(VKBD).c -lpthread -o bin/keyd $(LDFLAGS)
+ debug:
+ 	CFLAGS="-g -fsanitize=address -Wunused" $(MAKE)
+ compose:
+-	-mkdir data
++	mkdir -p data
+ 	./scripts/generate_xcompose
+ man:
+ 	for f in docs/*.scdoc; do \
+@@ -47,21 +52,6 @@ man:
+ 		scdoc < "$$f" | gzip > "$$target"; \
+ 	done
+ install:
+-
+-	@if [ -e /run/systemd/system ]; then \
+-		sed -e 's#@PREFIX@#$(PREFIX)#' keyd.service.in > keyd.service; \
+-		mkdir -p $(DESTDIR)$(PREFIX)/lib/systemd/system/; \
+-		install -Dm644 keyd.service $(DESTDIR)$(PREFIX)/lib/systemd/system/keyd.service; \
+-	else \
+-		echo "NOTE: systemd not found, you will need to manually add keyd to your system's init process."; \
+-	fi
+-
+-	@if [ "$(VKBD)" = "usb-gadget" ]; then \
+-		sed -e 's#@PREFIX@#$(PREFIX)#' src/vkbd/usb-gadget.service.in > src/vkbd/usb-gadget.service; \
+-		install -Dm644 src/vkbd/usb-gadget.service $(DESTDIR)$(PREFIX)/lib/systemd/system/keyd-usb-gadget.service; \
+-		install -Dm755 src/vkbd/usb-gadget.sh $(DESTDIR)$(PREFIX)/bin/keyd-usb-gadget.sh; \
+-	fi
+-
+ 	mkdir -p $(DESTDIR)$(CONFIG_DIR)
+ 	mkdir -p $(DESTDIR)$(PREFIX)/bin/
+ 	mkdir -p $(DESTDIR)$(PREFIX)/share/keyd/
+@@ -70,7 +60,6 @@ install:
+ 	mkdir -p $(DESTDIR)$(PREFIX)/share/doc/keyd/
+ 	mkdir -p $(DESTDIR)$(PREFIX)/share/doc/keyd/examples/
+ 
+-	-groupadd keyd
+ 	install -m755 bin/* $(DESTDIR)$(PREFIX)/bin/
+ 	install -m644 docs/*.md $(DESTDIR)$(PREFIX)/share/doc/keyd/
+ 	install -m644 examples/* $(DESTDIR)$(PREFIX)/share/doc/keyd/examples/
+@@ -79,8 +68,28 @@ install:
+ 	install -m644 data/*.1.gz $(DESTDIR)$(PREFIX)/share/man/man1/
+ 	install -m644 data/keyd.compose $(DESTDIR)$(PREFIX)/share/keyd/
+ 
++	mkdir -p $(DESTDIR)$(PREFIX)/lib/systemd/system/
++	install -Dm644 keyd.service $(DESTDIR)$(PREFIX)/lib/systemd/system/keyd.service
++	install -Dm755 keyd.init $(DESTDIR)/etc/init.d/keyd
++
++ifndef DESTDIR # non-packaging mode
++	groupadd --system --force keyd
++	ifeq ("init",$(basename $(readlink -f /proc/1/exe))
++		update-rc.d keyd remove
++		update-rc.d keyd defaults
++	else
++		ifneq ("systemd",$(basename $(readlink -f /proc/1/exe))
++			echo "NOTE: Neither systemv nor systemd are found, you will need to manually add keyd to your init process."
++		endif
++	endif
++endif
++
++ifeq ("usb-gadget",$(VKBD))
++	install -Dm644 src/vkbd/usb-gadget.service $(DESTDIR)$(PREFIX)/lib/systemd/system/keyd-usb-gadget.service
++	install -Dm755 src/vkbd/usb-gadget.sh $(DESTDIR)$(PREFIX)/bin/keyd-usb-gadget.sh
++endif
++
+ uninstall:
+-	-groupdel keyd
+ 	rm -rf $(DESTDIR)$(PREFIX)/lib/systemd/system/keyd.service \
+ 		$(DESTDIR)$(PREFIX)/bin/keyd \
+ 		$(DESTDIR)$(PREFIX)/bin/keyd-application-mapper \
+@@ -89,9 +98,14 @@ uninstall:
+ 		$(DESTDIR)$(PREFIX)/share/keyd/ \
+ 		$(DESTDIR)$(PREFIX)/lib/systemd/system/keyd-usb-gadget.service \
+ 		$(DESTDIR)$(PREFIX)/bin/keyd-usb-gadget.sh \
+-		$(DESTDIR)$(PREFIX)/lib/systemd/system/keyd.service
++		$(DESTDIR)$(PREFIX)/lib/systemd/system/keyd.service \
++		$(DESTDIR)/etc/init.d/keyd
++
++ifndef DESTDIR # non-packaging mode
++	groupdel --system --force keyd
++endif
+ clean:
+-	-rm -rf bin keyd.service src/vkbd/usb-gadget.service
++	-rm -rf bin keyd.service keyd.init src/vkbd/usb-gadget.service
+ test:
+ 	@cd t; \
+ 	for f in *.sh; do \

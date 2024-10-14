@@ -1,0 +1,9 @@
+Package: snd-intel-avs-ucm-chrultrabook-cave
+Version: 0.0.1-1
+Architecture: @ARCH@
+Section: kernels
+Depends: alsa-ucm-conf
+Maintainer: d2cmath on github
+Description: use case files for snd_intel_avs driver
+ This is a collection of use case files for sound end-point nodes when when 
+ running on Google-Cave devices and using snd_intel_avs driver.

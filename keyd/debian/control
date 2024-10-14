@@ -1,0 +1,9 @@
+Package: keyd-chrultrabook
+Version: 2.5.0-1
+Architecture: @ARCH@
+Section: utils
+Depends: passwd, python3
+Maintainer: d2cmath on github
+Description: keyboard key remapping daemon
+ keyd is a system-wide key remapping daemon which supports many platforms 
+ including X, Wayland and others.

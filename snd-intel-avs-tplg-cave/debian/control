@@ -1,0 +1,9 @@
+Package: snd-intel-avs-tplg-chrultrabook-cave
+Version: 0.0.1-1
+Architecture: @ARCH@
+Section: kernels
+Depends:
+Maintainer: d2cmath on github
+Description: configure the system to use snd_intel_avs driver
+ This package configures the system to use snd_intel_avs driver, and add 
+ the required topology files for Google-Cave devices.

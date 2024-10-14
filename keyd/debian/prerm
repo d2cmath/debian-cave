@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+if [ "$(basename $(readlink -f /proc/1/exe))" = "init" ]; then
+	update-rc.d keyd remove
+fi
+

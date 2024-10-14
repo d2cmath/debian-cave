@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+groupadd --system --force keyd
+
+if [ "$(basename $(readlink -f /proc/1/exe))" = "init" ]; then
+	update-rc.d keyd remove
+	update-rc.d keyd defaults
+	
+	if [ "$(basename $(readlink -f /proc/1/exe))" = "systemd" ]; then
+		systemctl enable keyd
+		systemctl restart keyd
+	else
+		echo "NOTE: Neither systemv nor systemd are found, you will need to manually add keyd to your init process."
+	fi		
+fi
+

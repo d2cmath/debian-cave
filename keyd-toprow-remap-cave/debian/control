@@ -1,0 +1,9 @@
+Package: keyd-toprow-remap-chrultrabook-cave
+Version: 0.0.1-0
+Architecture: @ARCH@
+Section: utils
+Depends: keyd-chrultrabook, libinput10
+Maintainer: d2cmath on github
+Description: top row keymap for Google-Cave device
+ This is a collection of configuration files for mapping the top row keys on 
+ Google-Cave devices so that Search+Function Keys act like Fx keys.
